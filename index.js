@@ -33,6 +33,24 @@ async function run() {
       res.send(services);
     });
 
+    app.get("/available", async (req, res) => {
+      const date = req.query.date;
+      const services = await servicesCollection.find().toArray();
+      const query = { date: date };
+      const bookings = await bookingsCollection.find(query).toArray();
+      services.forEach((service) => {
+        const serviceBookings = bookings.filter(
+          (book) => book.treatment === service.name
+        );
+        const bookedSlots = serviceBookings.map((book) => book.slot);
+        const available = service.slots.filter(
+          (slot) => !bookedSlots.includes(slot)
+        );
+        service.slots = available;
+      });
+      res.send(services);
+    });
+
     app.post("/booking", async (req, res) => {
       const booking = req.body;
       const query = {

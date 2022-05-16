@@ -25,6 +25,7 @@ async function run() {
     const bookingsCollection = client
       .db("Doctors-Portal")
       .collection("bookings");
+    const usersCollection = client.db("Doctors-Portal").collection("users");
 
     // Get all treatment
     app.get("/service", async (req, res) => {
@@ -33,6 +34,7 @@ async function run() {
       res.send(services);
     });
 
+    // GET api for available treatment
     app.get("/available", async (req, res) => {
       const date = req.query.date;
       const services = await servicesCollection.find().toArray();
@@ -51,6 +53,17 @@ async function run() {
       res.send(services);
     });
 
+    // GET api for booking collection
+    app.get("/booking", async (req, res) => {
+      const patient = req.query.patient;
+
+      const bookings = await bookingsCollection
+        .find({ patient: patient })
+        .toArray();
+      res.send(bookings);
+    });
+
+    // POST api for booked the treatment
     app.post("/booking", async (req, res) => {
       const booking = req.body;
       const query = {
@@ -64,6 +77,23 @@ async function run() {
       }
       await bookingsCollection.insertOne(booking);
       res.send({ success: true });
+    });
+
+    // PUT api for user collection
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: user,
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.send(result);
     });
   } catch (error) {
     console.log(error);

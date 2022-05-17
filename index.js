@@ -16,6 +16,20 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+const verifyJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "UnAuthorized Access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.USER_TOKEN, function (err, decoded) {
+    if (err) {
+      res.status(403).send({ message: "Forbidden Access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
 async function run() {
   try {
     await client.connect();
@@ -54,17 +68,22 @@ async function run() {
     });
 
     // GET api for booking collection
-    app.get("/booking", async (req, res) => {
+
+    app.get("/booking", verifyJWT, async (req, res) => {
       const patient = req.query.patient;
-      const authHeader = req.headers.authorization;
-      console.log(authHeader);
-      const bookings = await bookingsCollection
-        .find({ patient: patient })
-        .toArray();
-      res.send(bookings);
+      const decodedEmail = req.decoded?.email;
+      if (patient === decodedEmail) {
+        const bookings = await bookingsCollection
+          .find({ patient: patient })
+          .toArray();
+        return res.send(bookings);
+      } else {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
     });
 
     // POST api for booked the treatment
+
     app.post("/booking", async (req, res) => {
       const booking = req.body;
       const query = {
@@ -96,7 +115,7 @@ async function run() {
         options
       );
       const token = jwt.sign({ email: email }, process.env.USER_TOKEN, {
-        expiresIn: "1h",
+        expiresIn: "2h",
       });
       res.send({ result, token });
     });

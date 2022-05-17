@@ -40,11 +40,29 @@ async function run() {
       .db("Doctors-Portal")
       .collection("bookings");
     const usersCollection = client.db("Doctors-Portal").collection("users");
+    const doctorsCollection = client.db("Doctors-Portal").collection("doctors");
+
+    const verifyAdmin = async (req, res, next) => {
+      const requester = req.decoded.email;
+      const requestAccount = await usersCollection.findOne({
+        email: requester,
+      });
+      if (requestAccount.role === "admin") {
+        next();
+      } else {
+        res.status(403).send({ message: "Forbidden Access" });
+      }
+    };
+
+    /********** All GET APIs  ******/
 
     // Get all treatment
     app.get("/service", async (req, res) => {
-      const cursor = servicesCollection.find();
-      const services = await cursor.toArray();
+      const services = await servicesCollection
+        .find()
+        .project({ name: 1 })
+        .toArray();
+
       res.send(services);
     });
 
@@ -89,6 +107,16 @@ async function run() {
       }
     });
 
+    // GET api for filtering admin
+    app.get("/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email: email });
+      const isAdmin = user.role === "admin";
+      res.send({ admin: isAdmin });
+    });
+
+    /********   ALL POST APIs **********/
+
     // POST api for booked the treatment
 
     app.post("/booking", async (req, res) => {
@@ -105,6 +133,16 @@ async function run() {
       await bookingsCollection.insertOne(booking);
       res.send({ success: true });
     });
+
+    // POST API for insert the doctor
+
+    app.post("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
+      const doctor = req.body;
+      const result = await doctorsCollection.insertOne(doctor);
+      res.send(result);
+    });
+
+    /********* ALL PUT APIs *******/
 
     // PUT api for user collection
     app.put("/user/:email", async (req, res) => {
@@ -127,31 +165,16 @@ async function run() {
       res.send({ result, token });
     });
 
-    // GET api for filtering admin
-    app.get("/admin/:email", async (req, res) => {
-      const email = req.params.email;
-      const user = await usersCollection.findOne({ email: email });
-      const isAdmin = user.role === "admin";
-      res.send({ admin: isAdmin });
-    });
-
     // PUT api for make admin
-    app.put("/user/admin/:email", verifyJWT, async (req, res) => {
+    app.put("/user/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
       const email = req.params.email;
-      const requester = req.decoded.email;
-      const requestAccount = await usersCollection.findOne({
-        email: requester,
-      });
-      if (requestAccount.role === "admin") {
-        const filter = { email: email };
-        const updateDoc = {
-          $set: { role: "admin" },
-        };
-        const result = await usersCollection.updateOne(filter, updateDoc);
-        res.send(result);
-      } else {
-        res.status(403).send({ message: "Forbidden Access" });
-      }
+
+      const filter = { email: email };
+      const updateDoc = {
+        $set: { role: "admin" },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
     });
   } catch (error) {
     console.log(error);

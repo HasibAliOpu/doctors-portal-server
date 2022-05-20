@@ -32,6 +32,8 @@ const verifyJWT = (req, res, next) => {
 };
 async function run() {
   try {
+    ///     All Collections     ///
+
     await client.connect();
     const servicesCollection = client
       .db("Doctors-Portal")
@@ -115,6 +117,13 @@ async function run() {
       res.send({ admin: isAdmin });
     });
 
+    // GET API for all doctor info
+
+    app.get("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
+      const doctors = await doctorsCollection.find().toArray();
+      res.send(doctors);
+    });
+
     /********   ALL POST APIs **********/
 
     // POST api for booked the treatment
@@ -139,6 +148,13 @@ async function run() {
     app.post("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
       const doctor = req.body;
       const result = await doctorsCollection.insertOne(doctor);
+      res.send(result);
+    });
+
+    app.delete("/doctor/:email", verifyJWT, verifyAdmin, async (req, res) => {
+      const email = req.params.email;
+
+      const result = await doctorsCollection.deleteOne({ email: email });
       res.send(result);
     });
 

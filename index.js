@@ -45,6 +45,9 @@ async function run() {
       .collection("bookings");
     const usersCollection = client.db("Doctors-Portal").collection("users");
     const doctorsCollection = client.db("Doctors-Portal").collection("doctors");
+    const paymentsCollection = client
+      .db("Doctors-Portal")
+      .collection("payments");
 
     const verifyAdmin = async (req, res, next) => {
       const requester = req.decoded.email;
@@ -135,7 +138,25 @@ async function run() {
       res.send(doctors);
     });
 
-    /********   ALL POST APIs **********/
+    /********   ALL POST/PATCH APIs **********/
+
+    app.patch("/booking/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId,
+        },
+      };
+      const result = await paymentsCollection.insertOne(payment);
+      const updatedBooking = await bookingsCollection.updateOne(
+        filter,
+        updatedDoc
+      );
+      res.send(updatedDoc);
+    });
 
     // POST api for booked the treatment
 
